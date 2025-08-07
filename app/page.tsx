@@ -16,7 +16,7 @@ const scenarios: Scenario[] = [
   {
     id: 'rural-kitchen-burn',
     title: 'Rural Kitchen Burn - Rajasthan',
-    description: 'A 35-year-old woman from a rural village in Rajasthan sustained burns while cooking on a traditional chulha during summer (45°C).',
+    description: 'A 35-year-old woman from a rural village in Rajasthan sustained burn injuries while cooking on a traditional chulha during summer (45°C).',
     complexity: 6,
     initialStep: 'initial-assessment',
     patientInfo: {
