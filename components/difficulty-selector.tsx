@@ -1,5 +1,5 @@
 // components/difficulty-selector.tsx
-"use client"
+"use client";
 import { Card } from "@/components/ui/card"
 import { difficultySettings } from "@/utils/difficulty-settings"
 import type { DifficultyLevel } from "@/types/types"
