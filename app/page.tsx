@@ -1,34 +1,42 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
-import { AlertTriangle, Heart, Thermometer, User, Award, RotateCcw } from 'lucide-react'
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { AlertTriangle, Heart, Thermometer, User, Award, RotateCcw } from 'lucide-react';
 
 interface Scenario {
-  id: string
-  title: string
-  description: string
+  id: string;
+  title: string;
+  description: string;
   patientInfo: {
-    age: number
-    weight: number
-    burnPercentage: number
-    burnDepth: string
-    timeFromInjury: string
-    location: string
-    climate: string
-  }
-  question: string
+    age: number;
+    weight: number;
+    burnPercentage: number;
+    burnDepth: string;
+    timeFromInjury: string;
+    location: string;
+    climate: string;
+  };
+  question: string;
   options: {
-    id: string
-    text: string
-    isCorrect: boolean
-    explanation: string
-    consequences?: string
-  }[]
-  educationalContent: string
+    id: string;
+    text: string;
+    isCorrect: boolean;
+    explanation: string;
+    consequences?: string;
+  }[];
+  educationalContent: string;
+}
+
+interface GameState {
+  currentScenario: number;
+  selectedOption: string | null;
+  showResult: boolean;
+  score: number;
+  completedScenarios: string[];
 }
 
 const scenarios: Scenario[] = [
@@ -152,49 +160,91 @@ const scenarios: Scenario[] = [
 ]
 
 export default function BurnsTrainingApp() {
-  const [currentScenario, setCurrentScenario] = useState(0)
-  const [selectedOption, setSelectedOption] = useState<string | null>(null)
-  const [showResult, setShowResult] = useState(false)
-  const [score, setScore] = useState(0)
-  const [completedScenarios, setCompletedScenarios] = useState<string[]>([])
+  const [gameState, setGameState] = useState<GameState>({
+    currentScenario: 0,
+    selectedOption: null,
+    showResult: false,
+    score: 0,
+    completedScenarios: [],
+  });
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Load state from localStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedState = localStorage.getItem('burnsGameState');
+      if (savedState) {
+        setGameState(JSON.parse(savedState));
+      }
+      setIsMounted(true);
+    }
+  }, []);
+
+  // Save state to localStorage on update
+  useEffect(() => {
+    if (isMounted && typeof window !== 'undefined') {
+      localStorage.setItem('burnsGameState', JSON.stringify(gameState));
+      console.log('Game state updated:', gameState);
+    }
+  }, [gameState, isMounted]);
 
   const handleOptionSelect = (optionId: string) => {
-    setSelectedOption(optionId)
-  }
+    setGameState((prev) => ({ ...prev, selectedOption: optionId }));
+  };
 
   const handleSubmit = () => {
-    if (!selectedOption) return
-    
-    const option = scenarios[currentScenario].options.find(opt => opt.id === selectedOption)
-    if (option?.isCorrect) {
-      setScore(score + 1)
-    }
-    
-    setCompletedScenarios([...completedScenarios, scenarios[currentScenario].id])
-    setShowResult(true)
-  }
+    if (!gameState.selectedOption) return;
+
+    const scenario = scenarios[gameState.currentScenario];
+    const option = scenario.options.find((opt) => opt.id === gameState.selectedOption);
+    setGameState((prev) => ({
+      ...prev,
+      score: option?.isCorrect ? prev.score + 1 : prev.score,
+      completedScenarios: [...prev.completedScenarios, scenario.id],
+      showResult: true,
+    }));
+  };
 
   const handleNext = () => {
-    if (currentScenario < scenarios.length - 1) {
-      setCurrentScenario(currentScenario + 1)
-      setSelectedOption(null)
-      setShowResult(false)
-    }
-  }
+    setGameState((prev) => {
+      const nextScenario = prev.currentScenario + 1;
+      if (nextScenario < scenarios.length) {
+        return {
+          ...prev,
+          currentScenario: nextScenario,
+          selectedOption: null,
+          showResult: false,
+        };
+      }
+      return {
+        ...prev,
+        currentScenario: scenarios.length, // Explicitly set to trigger Results
+        selectedOption: null,
+        showResult: false,
+      };
+    });
+  };
 
   const handleRestart = () => {
-    setCurrentScenario(0)
-    setSelectedOption(null)
-    setShowResult(false)
-    setScore(0)
-    setCompletedScenarios([])
+    setGameState({
+      currentScenario: 0,
+      selectedOption: null,
+      showResult: false,
+      score: 0,
+      completedScenarios: [],
+    });
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('burnsGameState');
+    }
+  };
+
+  // Prevent rendering until mounted to avoid hydration issues
+  if (!isMounted) {
+    return null;
   }
 
-  const scenario = scenarios[currentScenario]
-  const selectedOptionData = scenario.options.find(opt => opt.id === selectedOption)
-  const progress = ((currentScenario + (showResult ? 1 : 0)) / scenarios.length) * 100
-
-  if (currentScenario >= scenarios.length) {
+  // Results page
+  if (gameState.completedScenarios.length >= scenarios.length) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 p-4">
         <div className="max-w-4xl mx-auto">
@@ -211,12 +261,14 @@ export default function BurnsTrainingApp() {
             <CardContent>
               <div className="space-y-4">
                 <div className="text-4xl font-bold text-green-600">
-                  {score}/{scenarios.length}
+                  {gameState.score}/{scenarios.length}
                 </div>
                 <p className="text-lg">
-                  {score === scenarios.length ? "Perfect Score! Excellent understanding of burn fluid management." :
-                   score >= scenarios.length * 0.7 ? "Good job! You have a solid grasp of the concepts." :
-                   "Keep practicing! Review the educational content and try again."}
+                  {gameState.score === scenarios.length
+                    ? 'Perfect Score! Excellent understanding of burn fluid management.'
+                    : gameState.score >= scenarios.length * 0.7
+                    ? 'Good job! You have a solid grasp of the concepts.'
+                    : 'Keep practicing! Review the educational content and try again.'}
                 </p>
                 <Button onClick={handleRestart} className="mt-4">
                   <RotateCcw className="mr-2 h-4 w-4" />
@@ -227,8 +279,12 @@ export default function BurnsTrainingApp() {
           </Card>
         </div>
       </div>
-    )
+    );
   }
+
+  const scenario = scenarios[gameState.currentScenario];
+  const selectedOptionData = scenario.options.find((opt) => opt.id === gameState.selectedOption);
+  const progress = ((gameState.currentScenario + (gameState.showResult ? 1 : 0)) / scenarios.length) * 100;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 p-4">
@@ -242,18 +298,18 @@ export default function BurnsTrainingApp() {
                   <Heart className="h-6 w-6 text-red-500" />
                   Burns Fluid Management Training
                 </CardTitle>
-                <CardDescription>
-                  Interactive scenarios for Indian healthcare settings
-                </CardDescription>
+                <CardDescription>Interactive scenarios for Indian healthcare settings</CardDescription>
               </div>
               <div className="text-right">
                 <div className="text-sm text-muted-foreground">Score</div>
-                <div className="text-2xl font-bold">{score}/{scenarios.length}</div>
+                <div className="text-2xl font-bold">
+                  {gameState.score}/{scenarios.length}
+                </div>
               </div>
             </div>
             <Progress value={progress} className="mt-4" />
             <div className="text-sm text-muted-foreground">
-              Scenario {currentScenario + 1} of {scenarios.length}
+              Scenario {gameState.currentScenario + 1} of {scenarios.length}
             </div>
           </CardHeader>
         </Card>
@@ -307,33 +363,36 @@ export default function BurnsTrainingApp() {
             </CardHeader>
             <CardContent className="space-y-4">
               <p className="font-medium">{scenario.question}</p>
-              
               <div className="space-y-3">
                 {scenario.options.map((option) => (
                   <div
                     key={option.id}
                     className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                      selectedOption === option.id
+                      gameState.selectedOption === option.id
                         ? 'border-blue-500 bg-blue-50'
                         : 'border-gray-200 hover:border-gray-300'
                     } ${
-                      showResult && option.isCorrect
+                      gameState.showResult && option.isCorrect
                         ? 'border-green-500 bg-green-50'
-                        : showResult && selectedOption === option.id && !option.isCorrect
+                        : gameState.showResult && gameState.selectedOption === option.id && !option.isCorrect
                         ? 'border-red-500 bg-red-50'
                         : ''
                     }`}
-                    onClick={() => !showResult && handleOptionSelect(option.id)}
+                    onClick={() => !gameState.showResult && handleOptionSelect(option.id)}
                   >
                     <div className="flex items-start gap-3">
-                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-sm font-medium ${
-                        selectedOption === option.id ? 'border-blue-500 bg-blue-500 text-white' : 'border-gray-300'
-                      }`}>
+                      <div
+                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-sm font-medium ${
+                          gameState.selectedOption === option.id
+                            ? 'border-blue-500 bg-blue-500 text-white'
+                            : 'border-gray-300'
+                        }`}
+                      >
                         {option.id.toUpperCase()}
                       </div>
                       <div className="flex-1">
                         <p>{option.text}</p>
-                        {showResult && selectedOption === option.id && (
+                        {gameState.showResult && gameState.selectedOption === option.id && (
                           <div className="mt-2 space-y-2">
                             <p className={`text-sm ${option.isCorrect ? 'text-green-700' : 'text-red-700'}`}>
                               <strong>{option.isCorrect ? '✓ Correct!' : '✗ Incorrect'}</strong>
@@ -351,22 +410,14 @@ export default function BurnsTrainingApp() {
                   </div>
                 ))}
               </div>
-
               <div className="flex gap-2">
-                {!showResult ? (
-                  <Button 
-                    onClick={handleSubmit} 
-                    disabled={!selectedOption}
-                    className="w-full"
-                  >
+                {!gameState.showResult ? (
+                  <Button onClick={handleSubmit} disabled={!gameState.selectedOption} className="w-full">
                     Submit Answer
                   </Button>
                 ) : (
-                  <Button 
-                    onClick={handleNext} 
-                    className="w-full"
-                  >
-                    {currentScenario < scenarios.length - 1 ? 'Next Scenario' : 'View Results'}
+                  <Button onClick={handleNext} className="w-full">
+                    {gameState.currentScenario < scenarios.length - 1 ? 'Next Scenario' : 'View Results'}
                   </Button>
                 )}
               </div>
@@ -375,7 +426,7 @@ export default function BurnsTrainingApp() {
         </div>
 
         {/* Educational Content */}
-        {showResult && (
+        {gameState.showResult && (
           <Card>
             <CardHeader>
               <CardTitle>Educational Content</CardTitle>
@@ -387,5 +438,5 @@ export default function BurnsTrainingApp() {
         )}
       </div>
     </div>
-  )
+  );
 }
