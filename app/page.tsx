@@ -620,7 +620,7 @@ export default function BurnsTrainingApp() {
   const renderGameOver = () => {
     return (
       <div className="space-y-4">
-        <div className="flex justify-center"></div>
+        <div className="flex justify-center">🎉 Success!</div>
         <Card className="text-center">
           <CardHeader>
             <div className="flex justify-center mb-4">
